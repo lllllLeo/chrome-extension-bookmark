@@ -2,12 +2,15 @@ import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom";
 import styled from "styled-components";
 import Add from "./components/Add";
+import Edit from "./components/Edit";
 import Bookmark from "./models/Bookmark";
 
 const Popup = () => {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [isAdding, setIsAdding] = useState<boolean>(false);
+  const [isAddMode, setIsAddMode] = useState<boolean>(false);
+  const [isModifyMode, setIsModifyMode] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [id, setId] = useState<string>("");
 
   useEffect(() => {
     const bookmark = window.localStorage.getItem("bookmark")
@@ -15,26 +18,20 @@ const Popup = () => {
       : ([] as Bookmark[]);
     setBookmarks([...bookmark]);
   }, []);
-  // const [currentURL, setCurrentURL] = useState<string>();
-  // title, id
-  // useEffect(() => {
-  //   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-  //     setCurrentURL(tabs[0].url);
-  //     // alert(tabs[0].title);
-  //   });
-  // }, []);
+
   const handleClickBookmark = (url: string) => () => {
     chrome.tabs.update({ url });
   };
 
-  const handleClickEditButton = () => {
-    // !isAdding ? setIsEditing(!isEditing) : setIsAdding(false);
-    setIsEditing(!isEditing);
-  };
+  // 추가 폼
+  const handleAddModeButton = () => setIsAddMode(true);
+  const handleCancelAddModeButton = () => setIsAddMode(false);
+  // 편집 폼
+  const handleModifyModeButton = () => setIsModifyMode(true);
+  const handleCancelModifyModeButton = () => setIsModifyMode(false);
 
-  const handleClickAddButton = () => {
-    setIsAdding(!isAdding);
-  };
+  // 편집, 삭제 페이지
+  const handleEditButton = () => setIsEditing(!isEditing);
 
   const handleAddBookmark = (bookmark: Bookmark) => {
     setBookmarks([...bookmarks, bookmark]);
@@ -42,48 +39,95 @@ const Popup = () => {
       "bookmark",
       JSON.stringify([...bookmarks, bookmark])
     );
-    setIsAdding(false);
+    setIsAddMode(false);
+  };
+
+  const handleEditBookmark = (bookmark: Bookmark) => {
+    const updatedBookmarks = bookmarks.map((item: Bookmark) => {
+      if (item.id === id) {
+        return { ...item, title: bookmark.title, url: bookmark.url };
+      }
+      return item;
+    });
+    setBookmarks(updatedBookmarks);
+    window.localStorage.setItem("bookmark", JSON.stringify(updatedBookmarks));
+    setIsModifyMode(false);
+  };
+
+  const handleChangeBookmark = (id: string) => () => {
+    setId(id);
+    setIsModifyMode(true);
+  };
+  const handleDeleteBookmark = (id: string) => () => {
+    const bookmark = bookmarks.filter((item: Bookmark) => item.id !== id);
+    setBookmarks([...bookmark]);
+    window.localStorage.setItem("bookmark", JSON.stringify([...bookmark]));
+  };
+
+  const ListElement = (props: { item: Bookmark }) => {
+    return !isEditing ? (
+      <ItemLi key={props.item.id} onClick={handleClickBookmark(props.item.url)}>
+        {/* TODO: https:// 붙여주는거 정규식 */}
+        <BookmarkA href={props.item.url}>
+          <Image
+            src={`https://www.google.com/s2/favicons?sz=32&domain_url=${props.item.url}`}
+            // whale://large-icon/32/https://www.naver.com
+          />
+          <br />
+          <Title>{props.item.title}</Title>
+        </BookmarkA>
+      </ItemLi>
+    ) : (
+      <ItemLi2 key={props.item.id}>
+        <ContentFrame>
+          <Image
+            src={`https://www.google.com/s2/favicons?sz=32&domain_url=${props.item.url}`}
+            // whale://large-icon/32/https://www.naver.com
+          />
+          <br />
+          <Title>{props.item.title}</Title>
+        </ContentFrame>
+        <ActionFramge>
+          <UpdateItem onClick={handleChangeBookmark(props.item.id)}>
+            <span>수정</span>
+          </UpdateItem>
+          <DeleteItem onClick={handleDeleteBookmark(props.item.id)}>
+            <span>삭제</span>
+          </DeleteItem>
+        </ActionFramge>
+      </ItemLi2>
+    );
   };
 
   return (
     <div>
-      {!isAdding ? (
+      {isModifyMode && (
+        <Edit
+          id={id}
+          onEditBookmark={handleEditBookmark}
+          onCancel={handleCancelModifyModeButton}
+        />
+      )}
+      {!isModifyMode && !isAddMode ? (
         <Container>
           <Section>
             <ScrollBox>
               <ItemsUl>
-                {/* {data.map((item: Bookmark) => ( */}
                 {bookmarks.length !== 0 &&
                   bookmarks.map((item: Bookmark) => (
-                    <ItemLi
-                      key={item.id}
-                      onClick={handleClickBookmark(item.url)}
-                    >
-                      {/* TODO: https:// 붙여주는거 정규식 */}
-                      <BookmarkA href={item.url}>
-                        <ImageFrame
-                          src={`https://www.google.com/s2/favicons?sz=32&domain_url=${item.url}`}
-                          // whale://large-icon/32/https://www.naver.com
-                        />
-                        <br />
-                        <Title>{item.title}</Title>
-                      </BookmarkA>
-                    </ItemLi>
+                    <ListElement item={item} />
                   ))}
               </ItemsUl>
             </ScrollBox>
           </Section>
           <HR />
-          <Button onClick={handleClickAddButton}>{"추가"}</Button>
-          <Button onClick={handleClickEditButton}>
+          <Button onClick={handleAddModeButton}>{"추가"}</Button>
+          <Button onClick={handleEditButton}>
             {!isEditing ? "편집" : "취소"}
           </Button>
         </Container>
-      ) : (
-        <Add
-          onAddBookmark={handleAddBookmark}
-          onClickAddButton={handleClickAddButton}
-        />
+      ) : isModifyMode ? null : (
+        <Add onAdd={handleAddBookmark} onCancel={handleCancelAddModeButton} />
       )}
     </div>
   );
@@ -95,7 +139,7 @@ const Section = styled.div`
   width: 530px;
   height: 200px;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   overflow-y: auto;
 
   // display: scroll;
@@ -141,13 +185,11 @@ const ItemsUl = styled.ul`
 `;
 const ItemLi = styled.li`
   display: flex;
-  min-width: 88px;
-  min-height: 55px;
-  // flex: 1 1 75px;
-  // flex: 15%;
+  min-width: 98px;
+  min-height: 65px;
   justify-content: center;
   margin: 2px;
-  padding: 5px;
+  // padding: 5px;
 
   // border: 1px solid #000000;
   border-radius: 5px;
@@ -166,14 +208,100 @@ const ItemLi = styled.li`
   }
 `;
 
-const ImageFrame = styled.img`
+const ItemLi2 = styled.li`
+  display: flex;
+  min-width: 98px;
+  min-height: 65px;
+  justify-content: center;
+  margin: 2px;
+  // padding: 5px;
+
+  // border: 1px solid #000000;
+  border-radius: 5px;
+  // box-shadow: rgba(50, 50, 93, 0.25) 0px 6px 12px -2px, rgba(0, 0, 0, 0.3) 0px 3px 7px -3px;
+  box-shadow: rgba(0, 0, 0, 0.12) 0px 1px 3px, rgba(0, 0, 0, 0.24) 0px 1px 2px;
+  align-items: center;
+  cursor: pointer;
+  // &:hover {
+  //   background: rgba(255, 255, 255, 0.3);
+  // }
+  &:hover img {
+    opacity: 0.5;
+  }
+`;
+
+const ContentFrame = styled.div`
+  text-align: center;
+  position: absolute;
+  z-index: 1;
+`;
+const ActionFramge = styled.div`
+  display: flex;
+  min-width: 98px;
+  min-height: 65px;
+  border-radius: 5px;
+
+  flex-direction: row;
+  position: absolute;
+  z-index: 2;
+`;
+
+const UpdateItem = styled.div`
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 49px;
+  min-height: 55px;
+  background: rgba(100, 146, 206, 0.4);
+  border-radius: 5px 0 0 5px;
+  & span {
+    font-size: 0.4em;
+    color: #ffffff;
+  }
+  &:hover {
+    background: rgba(100, 146, 206, 0.8);
+  }
+`;
+const DeleteItem = styled.div`
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 49px;
+  min-height: 55px;
+  border-radius: 0 5px 5px 0;
+  background: rgba(206, 100, 100, 0.4);
+  & span {
+    font-size: 0.4em;
+    color: #ffffff;
+  }
+  &:hover {
+    background: rgba(206, 100, 100, 0.8);
+  }
+`;
+// const UpdateIcon = styled.img.attrs({
+//   src: "./change2.svg",
+// })`
+//   opacity: 0.5;
+// `;
+
+// const DeleteIcon = styled.img.attrs({
+//   src: "./delete.png",
+// })`
+//   opacity: 0.5;
+// `;
+
+const Image = styled.img`
   min-width: 32px;
   min-height: 32px;
 `;
 
 const BookmarkA = styled.a`
+  min-height: 51px;
   text-align: center;
   text-decoration: none;
+  margin: 6px;
   color: black;
 `;
 

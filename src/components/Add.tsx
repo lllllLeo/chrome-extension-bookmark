@@ -6,8 +6,8 @@ import { validation } from "../utils/util";
 let globalTimeout: null | ReturnType<typeof setTimeout> = null;
 
 const Add = (props: {
-  onAddBookmark: (bookmark: Bookmark) => void;
-  onClickAddButton: () => void;
+  onAdd: (bookmark: Bookmark) => void;
+  onCancel: () => void;
 }) => {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
@@ -29,7 +29,7 @@ const Add = (props: {
       title: titleInputRef.current!.value,
       url: urlInputRef.current!.value,
     };
-    props.onAddBookmark(bookmark);
+    props.onAdd(bookmark);
   };
 
   const handleKeyUp = () => {
@@ -77,7 +77,7 @@ const Add = (props: {
       </Section>
       <HR />
       <Button onClick={handleSubmit}>{"추가"}</Button>
-      <Button onClick={props.onClickAddButton}>{"취소"}</Button>
+      <Button onClick={props.onCancel}>{"취소"}</Button>
     </Container>
   );
 };

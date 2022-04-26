@@ -5,36 +5,41 @@ import Bookmark from "../models/Bookmark";
 import { validation } from "../utils/util";
 let globalTimeout: null | ReturnType<typeof setTimeout> = null;
 
-const Add = (props: {
-  onAddBookmark: (bookmark: Bookmark) => void;
-  onClickAddButton: () => void;
+const Edit = (props: {
+  id: string;
+  onEditBookmark: (bookmark: Bookmark) => void;
+  onCancel: () => void;
 }) => {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const [viewImage, setViewImage] = useState<string>();
-  // const [viewTitle, setViewTitle] = useState<string>(); TODO: get title
-
+  const item = JSON.parse(window.localStorage.getItem("bookmark") || "").filter(
+    (item: Bookmark) => item.id === props.id
+  );
   useEffect(() => {
+    titleInputRef.current!.value = item[0].title;
+    urlInputRef.current!.value = item[0].url;
     titleInputRef.current!.focus();
+    setUrlImage();
   }, []);
 
   const handleBlur = () => setUrlImage();
 
-  // TODO: 고차함수
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!validation(titleInputRef, urlInputRef)) return;
     const bookmark = {
-      id: uuid(),
+      id: item[0].id,
       title: titleInputRef.current!.value,
       url: urlInputRef.current!.value,
     };
-    props.onAddBookmark(bookmark);
+    console.log(bookmark);
+    props.onEditBookmark(bookmark);
   };
 
   const handleKeyUp = () => {
     if (globalTimeout != null) clearTimeout(globalTimeout);
-    globalTimeout = setTimeout(setUrlImage, 800);
+    globalTimeout = setTimeout(setUrlImage, 700);
   };
 
   const setUrlImage = () => {
@@ -63,7 +68,9 @@ const Add = (props: {
             autoCapitalize="none"
             autoComplete="off"
             spellCheck="false"
-          ></Input>
+          >
+            {item.title}
+          </Input>
           <br />
           <Input
             ref={urlInputRef}
@@ -72,12 +79,15 @@ const Add = (props: {
             autoComplete="off"
             spellCheck="false"
             onKeyUp={handleKeyUp}
-          ></Input>
+            value={item.url}
+          >
+            {item.url}
+          </Input>
         </Form>
       </Section>
       <HR />
-      <Button onClick={handleSubmit}>{"추가"}</Button>
-      <Button onClick={props.onClickAddButton}>{"취소"}</Button>
+      <Button onClick={handleSubmit}>{"수정"}</Button>
+      <Button onClick={props.onCancel}>{"취소"}</Button>
     </Container>
   );
 };
@@ -148,4 +158,4 @@ const HR = styled.hr`
   border: 0.5px solid #d5d5d5;
 `;
 
-export default Add;
+export default Edit;
